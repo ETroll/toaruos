@@ -1,17 +1,17 @@
 /* vim: tabstop=4 shiftwidth=4 noexpandtab
  * This file is part of ToaruOS and is released under the terms
  * of the NCSA / University of Illinois License - see LICENSE.md
- * Copyright (C) 2011-2014 Kevin Lange
+ * Copyright (C) 2011-2018 K. Lange
  * Copyright (C) 2012 Markus Schober
  *
  * Task Switching and Management Functions
  *
  */
-#include <system.h>
-#include <process.h>
-#include <logging.h>
-#include <shm.h>
-#include <mem.h>
+#include <kernel/system.h>
+#include <kernel/process.h>
+#include <kernel/logging.h>
+#include <kernel/shm.h>
+#include <kernel/mem.h>
 
 #define TASK_MAGIC 0xDEADBEEF
 
@@ -143,8 +143,8 @@ clone_table(
 		if (src->pages[i].present)	table->pages[i].present = 1;
 		if (src->pages[i].rw)		table->pages[i].rw = 1;
 		if (src->pages[i].user)		table->pages[i].user = 1;
-		if (src->pages[i].accessed)	table->pages[i].accessed = 1;
-		if (src->pages[i].dirty)	table->pages[i].dirty = 1;
+		if (src->pages[i].writethrough)	table->pages[i].writethrough = 1;
+		if (src->pages[i].cachedisable)	table->pages[i].cachedisable = 1;
 		/* Copy the contents of the page from the old table to the new one */
 		copy_page_physical(src->pages[i].frame * 0x1000, table->pages[i].frame * 0x1000);
 	}
@@ -432,6 +432,7 @@ void switch_next(void) {
 	eip = current_process->thread.eip;
 	esp = current_process->thread.esp;
 	ebp = current_process->thread.ebp;
+	unswitch_fpu();
 
 	/* Validate */
 	if ((eip < (uintptr_t)&code) || (eip > (uintptr_t)heap_end)) {
@@ -514,7 +515,8 @@ void task_exit(int retval) {
 
 	process_t * parent = process_get_parent((process_t *)current_process);
 
-	if (parent) {
+	if (parent && !parent->finished) {
+		send_signal(parent->group, SIGCHLD, 1);
 		wakeup_queue(parent->wait_queue);
 	}
 

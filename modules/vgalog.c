@@ -1,10 +1,10 @@
-#include <system.h>
-#include <printf.h>
-#include <module.h>
+#include <kernel/system.h>
+#include <kernel/printf.h>
+#include <kernel/module.h>
+#include <kernel/logging.h>
+#include <kernel/types.h>
 
-#include <logging.h>
-
-#include "../userspace/gui/terminal/lib/termemu.c"
+#include "../lib/termemu.c"
 
 static unsigned short * textmemptr = (unsigned short *)0xB8000;
 static void placech(unsigned char c, int x, int y, int attr) {
@@ -63,7 +63,7 @@ static void term_write(char c) {
 	write_string(foo);
 }
 
-static uint32_t vga_write(fs_node_t * node, uint32_t offset, uint32_t size, uint8_t *buffer) {
+static uint32_t vga_write(fs_node_t * node, uint64_t offset, uint32_t size, uint8_t *buffer) {
 	/* XXX do some terminal processing like we did in the old days */
 	size_t i = 0;
 	while (*buffer && i < size) {
@@ -103,7 +103,7 @@ static int term_get_csr_y() {
 	return cur_y;
 }
 
-static void term_set_csr_show(uint8_t on) {
+static void term_set_csr_show(int on) {
 	return;
 }
 
@@ -120,10 +120,6 @@ static void input_buffer_stuff(char * str) {
 	return;
 }
 
-static void set_term_font_size(float s) {
-	/* Do nothing */
-}
-
 static void set_title(char * c) {
 	/* Do nothing */
 }
@@ -132,31 +128,26 @@ static void term_clear(int i) {
 	memset(textmemptr, 0x00, sizeof(unsigned short) * 80 * 25);
 }
 
+int unsupported_int(void) { return 0; }
+void unsupported(int x, int y, char * data) { }
+
 term_callbacks_t term_callbacks = {
-	/* writer*/
-	&term_write,
-	/* set_color*/
-	&term_set_colors,
-	/* set_csr*/
-	&term_set_csr,
-	/* get_csr_x*/
-	&term_get_csr_x,
-	/* get_csr_y*/
-	&term_get_csr_y,
-	/* set_cell*/
-	&term_set_cell,
-	/* cls*/
-	&term_clear,
-	/* scroll*/
-	&term_scroll,
-	/* redraw_cursor*/
-	&term_redraw_cursor,
-	/* input_buffer_stuff*/
-	&input_buffer_stuff,
-	/* set_font_size*/
-	&set_term_font_size,
-	/* set_title*/
-	&set_title,
+	term_write,
+	term_set_colors,
+	term_set_csr,
+	term_get_csr_x,
+	term_get_csr_y,
+	term_set_cell,
+	term_clear,
+	term_scroll,
+	term_redraw_cursor,
+	input_buffer_stuff,
+	set_title,
+	unsupported,
+	unsupported_int,
+	unsupported_int,
+	term_set_csr_show,
+	NULL,
 };
 
 
